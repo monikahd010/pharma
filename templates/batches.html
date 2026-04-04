@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Batch & QC{% endblock %}
+{% block page_title %}Batch & QC Management{% endblock %}
+
+{% block content %}
+<div class="filter-bar">
+    <div class="filter-group">
+        <label>Sort by</label>
+        <select onchange="applyFilter()" id="sortSel">
+            <option value="date_desc" {% if sort=='date_desc' %}selected{% endif %}>Date ↓ Newest first</option>
+            <option value="date_asc"  {% if sort=='date_asc'  %}selected{% endif %}>Date ↑ Oldest first</option>
+            <option value="name_asc"  {% if sort=='name_asc'  %}selected{% endif %}>Product A → Z</option>
+            <option value="name_desc" {% if sort=='name_desc' %}selected{% endif %}>Product Z → A</option>
+            <option value="batch_asc" {% if sort=='batch_asc' %}selected{% endif %}>Batch No A → Z</option>
+            <option value="batch_desc"{% if sort=='batch_desc'%}selected{% endif %}>Batch No Z → A</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>QC Status</label>
+        <select onchange="applyFilter()" id="statusSel">
+            <option value="all"     {% if status=='all'     %}selected{% endif %}>All Batches</option>
+            <option value="Pass"    {% if status=='Pass'    %}selected{% endif %}>✅ Pass</option>
+            <option value="Fail"    {% if status=='Fail'    %}selected{% endif %}>❌ Fail</option>
+            <option value="Pending" {% if status=='Pending' %}selected{% endif %}>🕐 Pending</option>
+        </select>
+    </div>
+    <a href="{{ url_for('add_batch') }}" class="btn btn-primary" style="margin-left:auto">＋ Log New Batch</a>
+</div>
+
+<div class="card">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Batch No.</th><th>Product</th><th>Mfg Date</th><th>Expiry Date</th>
+                <th>Quantity</th><th>pH</th><th>Purity %</th><th>Moisture %</th>
+                <th>QC Status</th><th>Remarks</th><th>Update QC</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for b in batches %}
+        <tr>
+            <td><strong>{{ b['batch_number'] }}</strong></td>
+            <td>{{ b['product_name'] }}</td>
+            <td>{{ b['manufacture_date'] }}</td>
+            <td>{{ b['expiry_date'] }}</td>
+            <td>{{ b['quantity'] }} {{ b['unit'] }}</td>
+            <td>{{ b['ph_level'] or '—' }}</td>
+            <td>{{ b['purity'] or '—' }}</td>
+            <td>{{ b['moisture'] or '—' }}</td>
+            <td>
+                <span class="badge
+                    {% if b['qc_status']=='Pass' %}badge-success
+                    {% elif b['qc_status']=='Fail' %}badge-danger
+                    {% else %}badge-warning{% endif %}">
+                    {{ b['qc_status'] }}
+                </span>
+            </td>
+            <td>{{ b['remarks'] or '—' }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('update_qc', bid=b['id']) }}" class="inline-form">
+                    <select name="qc_status" class="form-control-sm">
+                        <option {% if b['qc_status']=='Pass'    %}selected{% endif %}>Pass</option>
+                        <option {% if b['qc_status']=='Fail'    %}selected{% endif %}>Fail</option>
+                        <option {% if b['qc_status']=='Pending' %}selected{% endif %}>Pending</option>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-primary">Update</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function applyFilter() {
+    const sort   = document.getElementById('sortSel').value;
+    const status = document.getElementById('statusSel').value;
+    window.location.href = `/batches?sort=${sort}&status=${status}`;
+}
+</script>
+{% endblock %}
