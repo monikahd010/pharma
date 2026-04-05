@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import sqlite3
 from datetime import datetime
@@ -27,7 +28,6 @@ def login_required(f):
 def init_db():
     conn = get_db()
     c = conn.cursor()
-
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE,
@@ -62,14 +62,10 @@ def init_db():
         reference TEXT,
         FOREIGN KEY (product_id) REFERENCES products(id)
     )''')
-
-    # Default user
     c.execute('SELECT COUNT(*) FROM users')
     if c.fetchone()[0] == 0:
         c.execute('INSERT INTO users (username,password) VALUES (?,?)',
                   ('admin', hash_password('admin123')))
-
-    # Products
     sample_products = [
         ('Amoxicillin 500mg','Medicine','Units',100,0),
         ('Paracetamol 650mg','Medicine','Units',150,0),
@@ -85,10 +81,7 @@ def init_db():
     c.execute('SELECT COUNT(*) FROM products')
     if c.fetchone()[0] == 0:
         c.executemany('INSERT INTO products (product_name,product_type,unit,reorder_level,current_stock) VALUES (?,?,?,?,?)', sample_products)
-
-    # Batches (March + April 2024 — two full months)
     sample_batches = [
-        # March 2024
         ('SL-MAR-001',1,'2024-03-02','2026-03-02',500,'Pass','6.8','99.2','0.3','March batch - Amoxicillin'),
         ('SL-MAR-002',2,'2024-03-04','2026-03-04',600,'Pass','7.0','98.8','0.4','March batch - Paracetamol'),
         ('SL-MAR-003',3,'2024-03-06','2026-03-06',400,'Pass','6.9','99.0','0.3','March batch - Ibuprofen'),
@@ -101,7 +94,6 @@ def init_db():
         ('SL-MAR-010',10,'2024-03-20','2026-03-20',180,'Pass','6.7','98.5','0.3','Vet Ivermectin'),
         ('SL-MAR-011',1,'2024-03-22','2026-03-22',300,'Pending','','','','In QC testing'),
         ('SL-MAR-012',2,'2024-03-25','2026-03-25',200,'Fail','5.2','91.0','1.2','pH out of range'),
-        # April 2024
         ('SL-APR-001',1,'2024-04-01','2026-04-01',550,'Pass','6.9','99.4','0.2','April batch - Amoxicillin'),
         ('SL-APR-002',2,'2024-04-03','2026-04-03',700,'Pass','7.0','99.0','0.3','April batch - Paracetamol'),
         ('SL-APR-003',3,'2024-04-05','2026-04-05',350,'Pass','6.8','98.5','0.4','April batch - Ibuprofen'),
@@ -115,13 +107,10 @@ def init_db():
         ('SL-APR-011',1,'2024-04-22','2026-04-22',400,'Pending','','','','Awaiting QC'),
         ('SL-APR-012',3,'2024-04-25','2026-04-25',180,'Fail','5.0','90.0','1.5','Failed - moisture high'),
     ]
-
     c.execute('SELECT COUNT(*) FROM batches')
     if c.fetchone()[0] == 0:
         c.executemany('''INSERT INTO batches (batch_number,product_id,manufacture_date,expiry_date,quantity,qc_status,ph_level,purity,moisture,remarks)
             VALUES (?,?,?,?,?,?,?,?,?,?)''', sample_batches)
-
-        # Stock IN for all Pass batches
         passed_batches = [
             (1,500,'2024-03-02','SL-MAR-001'),(2,600,'2024-03-04','SL-MAR-002'),
             (3,400,'2024-03-06','SL-MAR-003'),(4,300,'2024-03-08','SL-MAR-004'),
@@ -137,8 +126,6 @@ def init_db():
         for pid,qty,date,ref in passed_batches:
             c.execute('UPDATE products SET current_stock=current_stock+? WHERE id=?',(qty,pid))
             c.execute('INSERT INTO stock_log (product_id,change_type,quantity,date,reference) VALUES (?,?,?,?,?)',(pid,'IN',qty,date,ref))
-
-        # ── MARCH Stock OUT (dispatch/sales) ──
         march_out = [
             (1,120,'2024-03-05','ORD-MAR-101'),(2,200,'2024-03-06','ORD-MAR-102'),
             (3,90,'2024-03-07','ORD-MAR-103'),(4,80,'2024-03-09','ORD-MAR-104'),
@@ -150,7 +137,6 @@ def init_db():
             (9,150,'2024-03-26','ORD-MAR-115'),(3,60,'2024-03-28','ORD-MAR-116'),
             (10,40,'2024-03-29','ORD-MAR-117'),(4,50,'2024-03-30','ORD-MAR-118'),
         ]
-        # ── APRIL Stock OUT (dispatch/sales) ──
         april_out = [
             (1,180,'2024-04-02','ORD-APR-101'),(2,250,'2024-04-03','ORD-APR-102'),
             (3,130,'2024-04-04','ORD-APR-103'),(4,110,'2024-04-05','ORD-APR-104'),
@@ -166,11 +152,9 @@ def init_db():
         for pid,qty,date,ref in march_out + april_out:
             c.execute('UPDATE products SET current_stock=MAX(0,current_stock-?) WHERE id=?',(qty,pid))
             c.execute('INSERT INTO stock_log (product_id,change_type,quantity,date,reference) VALUES (?,?,?,?,?)',(pid,'OUT',qty,date,ref))
-
     conn.commit()
     conn.close()
 
-# ── AUTH ──────────────────────────────────────────
 @app.route('/login', methods=['GET','POST'])
 def login():
     if 'user_id' in session:
@@ -223,7 +207,6 @@ def settings():
         return redirect(url_for('settings'))
     return render_template('settings.html')
 
-# ── DASHBOARD ─────────────────────────────────────
 @app.route('/')
 @login_required
 def index():
@@ -241,7 +224,6 @@ def index():
                            passed=passed, failed=failed, pending=pending,
                            low_stock=low_stock, recent_batches=recent_batches)
 
-# ── INVENTORY ─────────────────────────────────────
 @app.route('/inventory')
 @login_required
 def inventory():
@@ -310,7 +292,6 @@ def stock_out(pid):
     conn.close()
     return redirect(url_for('inventory'))
 
-# ── BATCHES ───────────────────────────────────────
 @app.route('/batches')
 @login_required
 def batches():
@@ -370,7 +351,6 @@ def update_qc(bid):
     flash(f'QC updated to {new_status}!','success')
     return redirect(url_for('batches'))
 
-# ── STOCK LOG ─────────────────────────────────────
 @app.route('/stock_log')
 @login_required
 def stock_log():
@@ -388,7 +368,6 @@ def stock_log():
     conn.close()
     return render_template('stock_log.html', logs=logs, sort=sort, filter_type=filter_type)
 
-# ── ANALYTICS ─────────────────────────────────────
 @app.route('/analytics')
 @login_required
 def analytics():
@@ -401,62 +380,30 @@ def analytics():
     return render_template('analytics.html', products=products, batch_stats=batch_stats,
                            type_stats=type_stats, low_stock=low_stock)
 
-# ── MONTHLY COMPARISON ────────────────────────────
 @app.route('/comparison')
 @login_required
 def comparison():
     conn = get_db()
-
-    # Total dispatched per month
-    mar_total = conn.execute(
-        "SELECT COALESCE(SUM(quantity),0) FROM stock_log WHERE change_type='OUT' AND date LIKE '2024-03-%'"
-    ).fetchone()[0]
-    apr_total = conn.execute(
-        "SELECT COALESCE(SUM(quantity),0) FROM stock_log WHERE change_type='OUT' AND date LIKE '2024-04-%'"
-    ).fetchone()[0]
-
-    # Per-product breakdown both months
-    mar_by_product = conn.execute('''
-        SELECT p.product_name, p.product_type, COALESCE(SUM(sl.quantity),0) as total
-        FROM products p
-        LEFT JOIN stock_log sl ON sl.product_id=p.id AND sl.change_type='OUT' AND sl.date LIKE '2024-03-%'
-        GROUP BY p.id ORDER BY total DESC
-    ''').fetchall()
-    apr_by_product = conn.execute('''
-        SELECT p.product_name, p.product_type, COALESCE(SUM(sl.quantity),0) as total
-        FROM products p
-        LEFT JOIN stock_log sl ON sl.product_id=p.id AND sl.change_type='OUT' AND sl.date LIKE '2024-04-%'
-        GROUP BY p.id ORDER BY total DESC
-    ''').fetchall()
-
-    # Batches produced per month
+    mar_total = conn.execute("SELECT COALESCE(SUM(quantity),0) FROM stock_log WHERE change_type='OUT' AND date LIKE '2024-03-%'").fetchone()[0]
+    apr_total = conn.execute("SELECT COALESCE(SUM(quantity),0) FROM stock_log WHERE change_type='OUT' AND date LIKE '2024-04-%'").fetchone()[0]
+    mar_by_product = conn.execute('''SELECT p.product_name, p.product_type, COALESCE(SUM(sl.quantity),0) as total
+        FROM products p LEFT JOIN stock_log sl ON sl.product_id=p.id AND sl.change_type='OUT' AND sl.date LIKE '2024-03-%'
+        GROUP BY p.id ORDER BY total DESC''').fetchall()
+    apr_by_product = conn.execute('''SELECT p.product_name, p.product_type, COALESCE(SUM(sl.quantity),0) as total
+        FROM products p LEFT JOIN stock_log sl ON sl.product_id=p.id AND sl.change_type='OUT' AND sl.date LIKE '2024-04-%'
+        GROUP BY p.id ORDER BY total DESC''').fetchall()
     mar_batches = conn.execute("SELECT COUNT(*) FROM batches WHERE manufacture_date LIKE '2024-03-%'").fetchone()[0]
     apr_batches = conn.execute("SELECT COUNT(*) FROM batches WHERE manufacture_date LIKE '2024-04-%'").fetchone()[0]
-
-    # QC pass rate per month
     mar_pass = conn.execute("SELECT COUNT(*) FROM batches WHERE manufacture_date LIKE '2024-03-%' AND qc_status='Pass'").fetchone()[0]
     apr_pass = conn.execute("SELECT COUNT(*) FROM batches WHERE manufacture_date LIKE '2024-04-%' AND qc_status='Pass'").fetchone()[0]
-
-    # Stock IN per month
     mar_in = conn.execute("SELECT COALESCE(SUM(quantity),0) FROM stock_log WHERE change_type='IN' AND date LIKE '2024-03-%'").fetchone()[0]
     apr_in = conn.execute("SELECT COALESCE(SUM(quantity),0) FROM stock_log WHERE change_type='IN' AND date LIKE '2024-04-%'").fetchone()[0]
-
-    # Day-wise OUT for sparkline (march)
-    mar_daily = conn.execute('''
-        SELECT date, SUM(quantity) as qty FROM stock_log
-        WHERE change_type='OUT' AND date LIKE '2024-03-%' GROUP BY date ORDER BY date
-    ''').fetchall()
-    apr_daily = conn.execute('''
-        SELECT date, SUM(quantity) as qty FROM stock_log
-        WHERE change_type='OUT' AND date LIKE '2024-04-%' GROUP BY date ORDER BY date
-    ''').fetchall()
-
+    mar_daily = conn.execute("SELECT date, SUM(quantity) as qty FROM stock_log WHERE change_type='OUT' AND date LIKE '2024-03-%' GROUP BY date ORDER BY date").fetchall()
+    apr_daily = conn.execute("SELECT date, SUM(quantity) as qty FROM stock_log WHERE change_type='OUT' AND date LIKE '2024-04-%' GROUP BY date ORDER BY date").fetchall()
     conn.close()
-
     winner = 'April 2024' if apr_total > mar_total else 'March 2024' if mar_total > apr_total else 'Tie'
     diff   = abs(apr_total - mar_total)
     pct    = round((diff / mar_total * 100), 1) if mar_total > 0 else 0
-
     return render_template('comparison.html',
         mar_total=mar_total, apr_total=apr_total,
         mar_by_product=mar_by_product, apr_by_product=apr_by_product,
@@ -464,8 +411,7 @@ def comparison():
         mar_pass=mar_pass, apr_pass=apr_pass,
         mar_in=mar_in, apr_in=apr_in,
         mar_daily=mar_daily, apr_daily=apr_daily,
-        winner=winner, diff=diff, pct=pct
-    )
+        winner=winner, diff=diff, pct=pct)
 
 @app.context_processor
 def inject_globals():
@@ -473,4 +419,4 @@ def inject_globals():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
