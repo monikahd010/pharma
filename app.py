@@ -417,6 +417,9 @@ def comparison():
 def inject_globals():
     return {'now': datetime.now().strftime('%d %b %Y'), 'current_user': session.get('username','')}
 
+import os
+init_db()  # runs whether started by gunicorn or directly
+
 if __name__ == '__main__':
-    init_db()
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
