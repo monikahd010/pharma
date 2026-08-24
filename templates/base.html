@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sterling Labs — {% block title %}Dashboard{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body id="appBody">
+    <nav class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">SL</div>
+            <div>
+                <div class="brand-name">Sterling Labs</div>
+                <div class="brand-sub">Hosur, Tamil Nadu</div>
+            </div>
+        </div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">
+                <span class="nav-icon">⬡</span> Dashboard
+            </a></li>
+            <li><a href="{{ url_for('inventory') }}" class="{% if 'inventory' in request.endpoint %}active{% endif %}">
+                <span class="nav-icon">◈</span> Inventory
+            </a></li>
+            <li><a href="{{ url_for('batches') }}" class="{% if 'batch' in request.endpoint %}active{% endif %}">
+                <span class="nav-icon">◉</span> Batch & QC
+            </a></li>
+            <li><a href="{{ url_for('stock_log') }}" class="{% if request.endpoint == 'stock_log' %}active{% endif %}">
+                <span class="nav-icon">◎</span> Stock Log
+            </a></li>
+            <li><a href="{{ url_for('analytics') }}" class="{% if request.endpoint == 'analytics' %}active{% endif %}">
+                <span class="nav-icon">◇</span> Analytics
+            </a></li>
+            <li><a href="{{ url_for('comparison') }}" class="{% if request.endpoint == 'comparison' %}active{% endif %}">
+                <span class="nav-icon">⇌</span> Mar vs Apr
+            </a></li>
+        </ul>
+        <div class="sidebar-bottom">
+            <a href="{{ url_for('settings') }}" class="sidebar-settings-link {% if request.endpoint == 'settings' %}active{% endif %}">
+                <span class="nav-icon">⚙</span> Settings
+            </a>
+            <div class="sidebar-user">
+                <div class="user-avatar">{{ current_user[0]|upper if current_user else 'U' }}</div>
+                <div class="user-info">
+                    <div class="user-name">{{ current_user }}</div>
+                    <a href="{{ url_for('logout') }}" class="logout-link">Sign out</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="topbar">
+            <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+            <div class="topbar-right">
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+                    <span id="themeIcon">🌙</span>
+                </button>
+                <span class="date-badge">{{ now }}</span>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>

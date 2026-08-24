@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card stat-blue">
+        <div class="stat-label">Total Products</div>
+        <div class="stat-value">{{ total_products }}</div>
+        <div class="stat-hint">Across all categories</div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="stat-label">QC Passed</div>
+        <div class="stat-value">{{ passed }}</div>
+        <div class="stat-hint">Batches cleared</div>
+    </div>
+    <div class="stat-card stat-red">
+        <div class="stat-label">QC Failed</div>
+        <div class="stat-value">{{ failed }}</div>
+        <div class="stat-hint">Rejected batches</div>
+    </div>
+    <div class="stat-card stat-yellow">
+        <div class="stat-label">Pending QC</div>
+        <div class="stat-value">{{ pending }}</div>
+        <div class="stat-hint">Awaiting results</div>
+    </div>
+</div>
+
+<div class="two-col">
+    <div class="card">
+        <div class="card-header">
+            <h2>⚠ Low Stock Alerts</h2>
+            <a href="{{ url_for('inventory') }}" class="btn-link">View all →</a>
+        </div>
+        {% if low_stock %}
+        <table class="table">
+            <thead><tr><th>Product</th><th>Stock</th><th>Reorder At</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for p in low_stock %}
+            <tr>
+                <td>{{ p['product_name'] }}</td>
+                <td>{{ p['current_stock'] }} {{ p['unit'] }}</td>
+                <td>{{ p['reorder_level'] }}</td>
+                <td><span class="badge badge-danger">Low Stock</span></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">✅ All products are sufficiently stocked</div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>Recent Batches</h2>
+            <a href="{{ url_for('batches') }}" class="btn-link">View all →</a>
+        </div>
+        <table class="table">
+            <thead><tr><th>Batch No.</th><th>Product</th><th>QC Status</th></tr></thead>
+            <tbody>
+            {% for b in recent_batches %}
+            <tr>
+                <td><strong>{{ b['batch_number'] }}</strong></td>
+                <td>{{ b['product_name'] }}</td>
+                <td>
+                    <span class="badge 
+                        {% if b['qc_status'] == 'Pass' %}badge-success
+                        {% elif b['qc_status'] == 'Fail' %}badge-danger
+                        {% else %}badge-warning{% endif %}">
+                        {{ b['qc_status'] }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card quick-actions-card">
+    <h2>Quick Actions</h2>
+    <div class="quick-actions">
+        <a href="{{ url_for('add_product') }}" class="action-btn">＋ Add Product</a>
+        <a href="{{ url_for('add_batch') }}" class="action-btn">＋ Log New Batch</a>
+        <a href="{{ url_for('analytics') }}" class="action-btn">◇ View Analytics</a>
+        <a href="{{ url_for('stock_log') }}" class="action-btn">◎ Stock History</a>
+    </div>
+</div>
+{% endblock %}

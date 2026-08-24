@@ -1,0 +1,7 @@
+database.db
+pharma_app/
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/

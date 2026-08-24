@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Stock Log{% endblock %}
+{% block page_title %}Stock Movement Log{% endblock %}
+
+{% block content %}
+<div class="filter-bar">
+    <div class="filter-group">
+        <label>Sort by</label>
+        <select onchange="applyFilter()" id="sortSel">
+            <option value="date_desc" {% if sort=='date_desc' %}selected{% endif %}>Date ↓ Newest first</option>
+            <option value="date_asc"  {% if sort=='date_asc'  %}selected{% endif %}>Date ↑ Oldest first</option>
+            <option value="name_asc"  {% if sort=='name_asc'  %}selected{% endif %}>Product A → Z</option>
+            <option value="name_desc" {% if sort=='name_desc' %}selected{% endif %}>Product Z → A</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Movement Type</label>
+        <select onchange="applyFilter()" id="typeSel">
+            <option value="all" {% if filter_type=='all' %}selected{% endif %}>All Movements</option>
+            <option value="IN"  {% if filter_type=='IN'  %}selected{% endif %}>▲ Stock IN</option>
+            <option value="OUT" {% if filter_type=='OUT' %}selected{% endif %}>▼ Stock OUT</option>
+        </select>
+    </div>
+</div>
+
+<div class="card">
+    <table class="table">
+        <thead>
+            <tr><th>#</th><th>Product</th><th>Movement</th><th>Quantity</th><th>Unit</th><th>Date</th><th>Reference</th></tr>
+        </thead>
+        <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log['id'] }}</td>
+            <td>{{ log['product_name'] }}</td>
+            <td>
+                {% if log['change_type']=='IN' %}
+                <span class="badge badge-success">▲ Stock IN</span>
+                {% else %}
+                <span class="badge badge-danger">▼ Stock OUT</span>
+                {% endif %}
+            </td>
+            <td>{{ log['quantity'] }}</td>
+            <td>{{ log['unit'] }}</td>
+            <td>{{ log['date'] }}</td>
+            <td>{{ log['reference'] or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function applyFilter() {
+    const sort = document.getElementById('sortSel').value;
+    const type = document.getElementById('typeSel').value;
+    window.location.href = `/stock_log?sort=${sort}&type=${type}`;
+}
+</script>
+{% endblock %}

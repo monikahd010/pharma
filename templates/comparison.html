@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Monthly Comparison{% endblock %}
+{% block page_title %}March vs April 2024 — Dispatch Comparison{% endblock %}
+
+{% block content %}
+
+<!-- WINNER BANNER -->
+<div class="winner-banner {% if winner == 'April 2024' %}banner-apr{% elif winner == 'March 2024' %}banner-mar{% else %}banner-tie{% endif %}">
+    <div class="winner-trophy">🏆</div>
+    <div>
+        <div class="winner-title">{{ winner }} performed better!</div>
+        <div class="winner-sub">
+            {% if winner != 'Tie' %}
+            {{ diff }} more units dispatched — {{ pct }}% increase over the other month
+            {% else %}
+            Both months had equal dispatch volume
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TOP KPI CARDS -->
+<div class="comp-kpi-grid">
+    <div class="comp-kpi mar-card">
+        <div class="month-label">📅 March 2024</div>
+        <div class="kpi-big">{{ mar_total }}</div>
+        <div class="kpi-sub">Total Units Dispatched</div>
+        <div class="kpi-row"><span>Batches Produced</span><strong>{{ mar_batches }}</strong></div>
+        <div class="kpi-row"><span>QC Passed</span><strong>{{ mar_pass }} / {{ mar_batches }}</strong></div>
+        <div class="kpi-row"><span>Stock Received (IN)</span><strong>{{ mar_in }}</strong></div>
+    </div>
+    <div class="comp-vs">VS</div>
+    <div class="comp-kpi apr-card">
+        <div class="month-label">📅 April 2024</div>
+        <div class="kpi-big">{{ apr_total }}</div>
+        <div class="kpi-sub">Total Units Dispatched</div>
+        <div class="kpi-row"><span>Batches Produced</span><strong>{{ apr_batches }}</strong></div>
+        <div class="kpi-row"><span>QC Passed</span><strong>{{ apr_pass }} / {{ apr_batches }}</strong></div>
+        <div class="kpi-row"><span>Stock Received (IN)</span><strong>{{ apr_in }}</strong></div>
+    </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="two-col">
+    <div class="card">
+        <h2 class="chart-title">Total Dispatch Comparison</h2>
+        <canvas id="totalChart" height="180"></canvas>
+    </div>
+    <div class="card">
+        <h2 class="chart-title">QC Pass Rate Comparison</h2>
+        <canvas id="qcPassChart" height="180"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="chart-title">Daily Dispatch Trend — March vs April</h2>
+    <canvas id="dailyChart" height="100"></canvas>
+</div>
+
+<!-- PER PRODUCT TABLE -->
+<div class="card">
+    <h2 class="chart-title">Product-wise Dispatch Breakdown</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Type</th>
+                <th>March Dispatch</th>
+                <th>April Dispatch</th>
+                <th>Change</th>
+                <th>Better Month</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for i in range(mar_by_product|length) %}
+        {% set m = mar_by_product[i] %}
+        {% set a = apr_by_product[i] %}
+        {% set diff_val = a['total'] - m['total'] %}
+        <tr>
+            <td><strong>{{ m['product_name'] }}</strong></td>
+            <td><span class="type-badge">{{ m['product_type'] }}</span></td>
+            <td class="month-cell-mar">{{ m['total'] }} units</td>
+            <td class="month-cell-apr">{{ a['total'] }} units</td>
+            <td>
+                {% if diff_val > 0 %}
+                <span class="change-up">▲ +{{ diff_val }}</span>
+                {% elif diff_val < 0 %}
+                <span class="change-down">▼ {{ diff_val }}</span>
+                {% else %}
+                <span class="change-flat">— No change</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if a['total'] > m['total'] %}
+                <span class="badge badge-apr">April 🏆</span>
+                {% elif m['total'] > a['total'] %}
+                <span class="badge badge-mar">March 🏆</span>
+                {% else %}
+                <span class="badge badge-warning">Tie</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- PER PRODUCT BAR CHART -->
+<div class="card">
+    <h2 class="chart-title">Per-Product Dispatch — Side by Side</h2>
+    <canvas id="productChart" height="120"></canvas>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const marTotal = {{ mar_total }};
+const aprTotal = {{ apr_total }};
+const marPass  = {{ mar_pass }};
+const aprPass  = {{ apr_pass }};
+const marBatch = {{ mar_batches }};
+const aprBatch = {{ apr_batches }};
+
+const prodNames = {{ mar_by_product | map(attribute='product_name') | list | tojson }};
+const marProd   = {{ mar_by_product | map(attribute='total') | list | tojson }};
+const aprProd   = {{ apr_by_product | map(attribute='total') | list | tojson }};
+
+const marDailyDates = {{ mar_daily | map(attribute='date') | list | tojson }};
+const marDailyQty   = {{ mar_daily | map(attribute='qty') | list | tojson }};
+const aprDailyDates = {{ apr_daily | map(attribute='date') | list | tojson }};
+const aprDailyQty   = {{ apr_daily | map(attribute='qty') | list | tojson }};
+
+const MAR_COLOR  = 'rgba(0,180,216,0.85)';
+const APR_COLOR  = 'rgba(46,196,182,0.85)';
+const MAR_BORDER = '#00b4d8';
+const APR_BORDER = '#2ec4b6';
+
+const chartDefaults = {
+    plugins: { legend: { labels: { color: '#ccc', font: { family: 'DM Sans' } } } },
+    scales: {
+        x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+    }
+};
+
+// Total bar
+new Chart(document.getElementById('totalChart'), {
+    type: 'bar',
+    data: {
+        labels: ['March 2024', 'April 2024'],
+        datasets: [{
+            label: 'Units Dispatched',
+            data: [marTotal, aprTotal],
+            backgroundColor: [MAR_COLOR, APR_COLOR],
+            borderColor: [MAR_BORDER, APR_BORDER],
+            borderWidth: 2,
+            borderRadius: 8,
+        }]
+    },
+    options: { ...chartDefaults, responsive: true }
+});
+
+// QC pass rate doughnut
+new Chart(document.getElementById('qcPassChart'), {
+    type: 'bar',
+    data: {
+        labels: ['March 2024', 'April 2024'],
+        datasets: [
+            {
+                label: 'QC Passed',
+                data: [marPass, aprPass],
+                backgroundColor: ['rgba(46,196,182,0.8)', 'rgba(46,196,182,0.8)'],
+                borderRadius: 6,
+            },
+            {
+                label: 'QC Failed/Pending',
+                data: [marBatch - marPass, aprBatch - aprPass],
+                backgroundColor: ['rgba(230,57,70,0.6)', 'rgba(230,57,70,0.6)'],
+                borderRadius: 6,
+            }
+        ]
+    },
+    options: { ...chartDefaults, responsive: true, scales: {
+        x: { stacked: true, ticks:{color:'#888'}, grid:{color:'rgba(255,255,255,0.05)'} },
+        y: { stacked: true, ticks:{color:'#888'}, grid:{color:'rgba(255,255,255,0.05)'} }
+    }}
+});
+
+// Daily trend line — normalise dates to day-of-month
+const marDays = marDailyDates.map(d => 'Mar ' + d.split('-')[2]);
+const aprDays = aprDailyDates.map(d => 'Apr ' + d.split('-')[2]);
+
+// Merge all labels for shared axis
+const allDayLabels = [...new Set([...marDays, ...aprDays])].sort();
+
+function mapToLabels(days, qtys, labels) {
+    const map = {};
+    days.forEach((d,i) => map[d] = qtys[i]);
+    return labels.map(l => map[l] || 0);
+}
+
+new Chart(document.getElementById('dailyChart'), {
+    type: 'line',
+    data: {
+        labels: allDayLabels,
+        datasets: [
+            {
+                label: 'March 2024',
+                data: mapToLabels(marDays, marDailyQty, allDayLabels),
+                borderColor: MAR_BORDER,
+                backgroundColor: 'rgba(0,180,216,0.1)',
+                fill: true, tension: 0.4, pointRadius: 4,
+            },
+            {
+                label: 'April 2024',
+                data: mapToLabels(aprDays, aprDailyQty, allDayLabels),
+                borderColor: APR_BORDER,
+                backgroundColor: 'rgba(46,196,182,0.1)',
+                fill: true, tension: 0.4, pointRadius: 4,
+            }
+        ]
+    },
+    options: { ...chartDefaults, responsive: true }
+});
+
+// Per-product grouped bar
+new Chart(document.getElementById('productChart'), {
+    type: 'bar',
+    data: {
+        labels: prodNames,
+        datasets: [
+            { label: 'March 2024', data: marProd, backgroundColor: MAR_COLOR, borderRadius: 4 },
+            { label: 'April 2024', data: aprProd, backgroundColor: APR_COLOR, borderRadius: 4 },
+        ]
+    },
+    options: { ...chartDefaults, responsive: true }
+});
+</script>
+{% endblock %}
