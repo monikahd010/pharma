@@ -37,7 +37,7 @@ pharma/
 
 🔐 Login
 
-"Login" (screenshots/login.png)
+![Login](./screenshots/login.png)
 
 📊 Dashboard
 
@@ -45,15 +45,16 @@ pharma/
 
 📦 Inventory
 
-"Inventory" (screenshots/inventory.png)
+![Inventory](./screenshots/inventory.png)
 
 🧪 Batches & Quality Control
 
-"Batches and Quality Control" (screenshots/batches-qc.png)
+![Batches and QC](./screenshots/batches-qc.png)
 
 📈 Analytics
 
-"Analytics" (screenshots/analytics.png)
+![Analytics](./screenshots/analytics.png)
+
 
 ▶️ How to Run
 
